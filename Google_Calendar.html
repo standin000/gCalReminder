@@ -1,0 +1,505 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>添加农历生日提醒</title>
+<!-- developer key for http://localhost:8080/ -->
+<!-- Plato Wu,2009/05/03: it seems it do not need developer key now -->
+<!-- <script type="text/javascript" src="http://www.google.com/jsapi?key=ABQIAAAA6zJe32RbwV-Isg_NCBfb5xT2yXp_ZAY8_ufC3CFXhHIE1NvwkxQ0sQitsBHBEJPWtylEE9BOPP_QHw" type="text/javascript"></script> -->
+<!-- Plato Wu,2009/05/13: Preload the library for minimizing roundtrips to Google's servers and decrease latency without using google.load -->
+<!-- <script type="text/javascript" src="https://www.google.com/jsapi"></script> -->
+<script type="text/javascript" src="http://www.google.com/jsapi?autoload={modules:[{name:gdata,version:1.x}]}"></script>
+<script type="text/javascript">
+
+/*
+(require :hunchentoot)
+(setf hunchentoot:*dispatch-table* 
+      (list (hunchentoot:create-folder-dispatcher-and-handler "/" "/home/plato/linux-backup/javascript/")
+	    #'hunchentoot:default-dispatcher))
+
+(setf hunchentoot:*default-content-type* "text/html; charset=UTF-8")
+
+(hunchentoot:start (make-instance 'hunchentoot:acceptor :port 8080))*/
+var EVENT_FEED_URL = 
+    "https://www.google.com/calendar/feeds/default/private/full";
+//Plato Wu,2009/05/02:  use stable version
+//google.load("gdata", "1.s");
+
+//google.setOnLoadCallback(init);
+
+function init() {
+  google.gdata.client.init(handleError);
+
+  if (!google.accounts.user.checkLogin(EVENT_FEED_URL)) 
+    google.accounts.user.login(EVENT_FEED_URL);
+
+}
+function logMeIn() {
+  scope = "https://www.google.com/calendar/feeds/";
+  var token = google.accounts.user.login(scope);
+}
+var calendarService; 
+function setupMyService() {
+// Create the calendar service object
+  calendarService = new google.gdata.calendar.CalendarService('Add Lunar Birthday');
+}
+
+function handleError(e) {
+// Plato Wu,2008/09/28
+// It seems there is a bug in gdata API with IE:
+// It will report:Invalid JSON format, unescaped json is not
+// a supported format for attribute or text values.
+// firefox is OK and it does not effect the notification for participant.
+//  alert("There was an error!");
+  document.getElementById("debug").innerHTML += (e.cause ? e.cause.statusText : e.message);
+//  alert(e.cause ? e.cause.statusText : e.message);
+}
+
+function insertBirthday(name, date) {
+/*
+ * Create a single event
+ */
+
+// The default "private/full" feed is used to insert event to the
+// primary calendar of the authenticated user
+
+var feedUri = 'https://www.google.com/calendar/feeds/default/private/full';
+
+// Create an instance of CalendarEventEntry representing the new event
+var entry = new google.gdata.calendar.CalendarEventEntry();
+
+// Set the title of the event
+entry.setTitle(google.gdata.Text.create(name + '的生日'));
+
+// Set the calendar summary
+var summary = new google.gdata.Text();
+summary.setText('记得打电话');
+entry.setContent(summary);
+// Set the calendar timezone
+//var timeZone = new google.gdata.calendar.TimeZoneProperty();
+//timeZone.setValue('Asia/Shanghai');
+//var s = timeZone.getValue();
+//entry.setTimeZone(timeZone);
+// Set the calendar location
+var where = new google.gdata.Where();
+where.setLabel('家');
+where.setValueString('家');
+entry.addLocation(where);
+
+// Create a When object that will be attached to the event
+var when = new google.gdata.When();
+
+// Set the start and end time of the When object
+// Plato Wu,2009/05/03 month need be 0-prefix
+var startTime =
+//google.gdata.DateTime.fromIso8601("2008-06-17T09:00:00.000+08:00");
+google.gdata.DateTime.fromIso8601(date+'T19:00:00.000+08:00');
+//document.getElementById("debug").innerHTML += startTime;
+var endTime =
+//google.gdata.DateTime.fromIso8601("2008-06-17T10:00:00.000+08:00");
+google.gdata.DateTime.fromIso8601(date+'T19:00:00.000+08:00');
+//document.getElementById("debug").innerHTML += endTime;
+when.setStartTime(startTime);
+when.setEndTime(endTime);
+
+var reminder = new google.gdata.Reminder();
+reminder.setDays(1);
+reminder.setMethod(google.gdata.Reminder.METHOD_SMS);
+// Plato Wu,2009/05/03 reminder belongs when after sync into mobilephone!
+when.addReminder(reminder);
+
+// Plato Wu,2009/05/03: alert becomes alarm after sync into mobilephone
+var alarm_reminder = new google.gdata.Reminder();
+alarm_reminder.setMinutes(10);
+alarm_reminder.setMethod(google.gdata.Reminder.METHOD_ALERT);
+when.addReminder(alarm_reminder);
+
+// Add the When object to the event
+entry.addTime(when);
+
+//var person = new google.gdata.calendar.CalendarWho();
+//person.setEmail(account);
+//entry.addParticipant(person);
+//var notification = new google.gdata.calendar.SendEventNotificationsProperty();
+//notification.setValue("true");
+//entry.setSendEventNotifications(notification);
+
+// The callback method that will be called after a successful insertion from insertEntry()
+var callback = function(result) {
+  document.getElementById("debug").innerHTML += "创建成功！";
+//  google.accounts.user.logout();
+//    alert('event created!')
+}
+
+// Error handler will be invoked if there is an error from insertEntry()
+
+// Submit the request using the calendar service object
+calendarService.insertEntry(feedUri, entry, callback,
+    handleError, google.gdata.calendar.CalendarEventEntry);
+}
+function add_event()
+{
+   var name = document.getElementById("name").value;
+   var month = document.getElementById("month").value;
+   var day = document.getElementById("day").value;
+   var start_year = document.getElementById("start_year").value;
+   var end_year = document.getElementById("end_year").value;
+   if(month < 1 || month > 12 ||
+      day < 1 || day > 30 ||
+      start_year < 1921 || start_year > 2050 ||
+      end_year < 1921 || end_year > 2050)
+   {
+       alert("请输入正确的年月日值");
+       return;
+   }
+
+//   alert(date.value);
+//   alert(name.value);
+//  c2e(2020,2,20);
+//  alert(c2e(2009,4,20));
+//  c2e(2020,6,18);
+/*  alert(c2e(2021,2,20));
+  alert(c2e(2025,9,21));
+  alert(c2e(2038,4,20));
+  alert(c2e(2046,9,21));
+  alert(c2e(2049,2,20));*/
+
+   setupMyService();
+//  alert(c2e(parseInt(end_year),parseInt(month),parseInt(day)));
+for(i = parseInt(start_year); i<= parseInt(end_year); i++)
+{
+    insertBirthday(name, c2e(i, parseInt(month), parseInt(day)));
+}
+/*   for(i = 2010; i < 2013; i++)
+   {
+/*       //Add 母亲节
+       var first = new Date(i,4,1);
+       //getDay return 0-6, 0 mean Sunday
+       if(first.getDay() == 0)
+         first.setDate(8);
+       else
+         first.setDate(1 - first.getDay() + 14);
+
+       insertBirthday('母亲节', first.toISO8601String(3,'+08:00')); //added from 2009-2012
+//      document.getElementById("debug").innerHTML += first.toISO8601String(3,'+08:00');
+//      document.getElementById("debug").innerHTML += first.getDay();
+       //Add 父亲节
+       first.setMonth(5);
+       first.setDate(1);
+       if(first.getDay() == 0)
+         first.setDate(15);
+       else
+         first.setDate(1 - first.getDay() + 21);
+       insertBirthday('父亲节', first.toISO8601String(3,'+08:00')); //added from 2009-2012
+//      document.getElementById("debug").innerHTML += first.toISO8601String(3,'+08:00');
+//       document.getElementById("debug").innerHTML += first.getDay();
+   }*/
+}
+/*
+转换从其它算法中的农历数据，它把闰月和大小月信息分开放在两个数组了，
+另外它的2013年的数据时错的。
+
+(setf input-1 '(#xb4a0 #xb550 #xad50 #x55a8 #x4ba0 #xa5b0 #x52b8 #x52b0 #xa930 #x74a8
+#x6aa0 #xad50 #x4da8 #x4b60 #x9570 #xa4e0 #xd260 #xe930 #xd530 #x5aa0 
+#x6b50 #x96d0 #x4ae8 #x4ad0 #xa4d0 #xd258 #xd250 #xd520 #xdaa0 #xb5a0 
+#x56d0 #x4ad8 #x49b0 #xa4b8 #xa4b0 #xaa50 #xb528 #x6d20 #xada0 #x55b0))
+(setf input-2 '(
+#x04 #x09 #x00 #x60 #x04
+#x00 #x20 #x60 #x05 #x00
+#x30 #xb0 #x06 #x00 #x50
+#x02 #x07 #x00 #x50 #x03))
+
+(setf input-2 (reduce #'(lambda (a b) (append a (list (ash b -4) (logand b #xF) ))) input-2 :initial-value nil))
+
+(loop for i in input-1 for j in input-2 do 
+      (if (= j 0) 
+          (format t "0x~x," (ash i -4))
+          (format t "0x~x," (+ (ash j 16) (ash i -3)))))
+
+*/
+//显示当前日期的阴阳历  Edit By R.W. (2004年12月24日 星期五)
+/*
+document.write(GetLunarDay(2004,12,24))
+========原理说明：===================
+http://search.csdn.net/Expert/topic/974/974567.xml?temp=.8316614
+首先，保存公历农历之间的转换信息:以任意一年作为起点，
+把从这一年起若干年(依需要而定)的农历信息保存起来。
+要保存一年的信息，只要两个信息就够了:
+1)农历每个月的大小;2)今年是否有闰月，闰几月以及闰月的大小。
+
+用一个整数来保存这些信息就足够了。
+具体的方法是:用一位来表示一个月的大小，大月记为1，小月记为0，
+这样就用掉12位(无闰月)或13位(有闰月)，再用高四位来表示闰月的月份，没有闰月记为0。
+
+※-----例----:
+2000年的信息数据是0xc96，化成二进制就是110010010110B，
+表示的含义是:1、2、5、8、10、11月大，其余月份小。
+2001年的农历信息数据是0x1a95(因为闰月，所以有13位)，
+具体的就是1、2、4、5、8、10、12月大，
+其余月份小(0x1a95=1101010010101B)，
+4月的后面那一个0表示的是闰4月小，接着的那个1表示5月大。
+
+这样就可以用一个数组来保存这些信息。在这里用数组CalendarDate[]来保存这些信息。
+
+※具体算法:
+1。计算处所求时间到起始年正月初一的天数。
+2。从起始年份开始，减去每一月的天数，一直到剩余的天数没有下一个多为止。
+此时，CalendarDate[]的下标到了多少，就是减去了多少年，
+用起始年份加上这个下标就可以得到农历年份，然后看减去了几个月。
+如果本年不闰月或者闰月还在后面，就可以直接得到农历月份，如果在闰月份数后面一个月，
+则这个月就是闰月，如果在闰月的后面，则要减去1才能得到月份数。剩余的天数就是农历日，
+农历时用(公历时+1)/2就可以简单的得到了。
+
+*/
+var CalendarData=new Array(100);
+var madd=new Array(12);
+var tgString="甲乙丙丁戊己庚辛壬癸";
+var dzString="子丑寅卯辰巳午未申酉戌亥";
+var numString="一二三四五六七八九十";
+var monString="正二三四五六七八九十冬腊";
+var weekString="日一二三四五六";
+var sx="鼠牛虎兔龙蛇马羊猴鸡狗猪";
+var cYear,cMonth,cDay,TheDate;
+
+function LunarInit()
+{
+  CalendarData = new Array(
+                  0xA4B,0x5164B,0x6A5,0x6D4,0x415B5,0x2B6,0x957,0x2092F,0x497,0x60C96,    // 1921-1930
+                  0xD4A,0xEA5,0x50DA9,0x5AD,0x2B6,0x3126E, 0x92E,0x7192D,0xC95,0xD4A,     // 1931-1940
+                  0x61B4A,0xB55,0x56A,0x4155B, 0x25D,0x92D,0x2192B,0xA95,0x71695,0x6CA,   // 1941-1950
+                  0xB55,0x50AB5,0x4DA,0xA5B,0x30A57,0x52B,0x8152A,0xE95,0x6AA,0x615AA,    // 1951-1960
+                  0xAB5,0x4B6,0x414AE,0xA57,0x526,0x31D26,0xD95,0x70B55,0x56A,0x96D,      // 1961-1970
+                  0x5095D,0x4AD,0xA4D,0x41A4D,0xD25,0x81AA5, 0xB54,0xB6A,0x612DA,0x95B,   // 1971-1980
+                  0x49B,0x41497,0xA4B,0xA164B, 0x6A5,0x6D4,0x615B4,0xAB6,0x957,0x5092F,   // 1981-1990
+                  0x497,0x64B, 0x30D4A,0xEA5,0x80D65,0x5AC,0xAB6,0x5126D,0x92E,0xC96,     // 1991-2000
+                  0x41A95,0xD4A,0xDA5,0x20B55,0x56A,0x7155B,0x25D,0x92D,0x5192B,0xA95,    // 2001-2010
+                  0xB4A,0x416AA,0xAD5,0x90AB5,0x4BA,0xA5B, 0x60A57,0x52B,0xA93,0x40E95,   // 2011-2020
+                  0x6AA,0xAD5,0x209B5,0x4B6,0x612AE,0xA4E,0xD26,0x51D26,0xD53,0x5AA,       // 2021-2030
+                  0x30D6A,0x96D,0xB095D,0x4AD,0xA4D,0x61A4B,0xD25,0xD52,0x51B54,0xB5A,    // 2031-2040
+                  0x56D,0x2095B,0x49B,0x71497,0xA4B,0xAA5,0x516A5,0x6D2,0xADA,0x30AB6     // 2041-2050
+);
+          madd[0]=0;madd[1]=31;madd[2]=59;madd[3]=90;
+          madd[4]=120;madd[5]=151;madd[6]=181;madd[7]=212;
+          madd[8]=243;madd[9]=273;madd[10]=304;madd[11]=334;
+ }
+
+function GetBit(m,n) {  return (m>>n)&1; }
+
+function e2c()
+{
+
+  TheDate= (arguments.length!=3) ? new Date() : new Date(arguments[0],arguments[1],arguments[2]);
+  var total,m,n,k;
+  var isEnd=false;
+  var tmp=TheDate.getYear();
+  if (tmp<1900)  { tmp+=1900;}
+  total=(tmp-1921)*365+Math.floor((tmp-1921)/4)+madd[TheDate.getMonth()]+TheDate.getDate()-38;
+  if (TheDate.getYear()%4==0&&TheDate.getMonth()>1) { total++;}
+
+  for(m=0;;m++)
+  {
+    k=(CalendarData[m]<0xfff)?11:12;
+    for(n=k;n>=0;n--)
+    {
+      if(total<=29+GetBit(CalendarData[m],n))
+      {
+        isEnd=true; break;
+      }
+      total=total-29-GetBit(CalendarData[m],n);
+    }
+    if(isEnd) break;
+  }
+
+  cYear=1921 + m; cMonth=k-n+1; cDay=total;
+  if(k==12)
+   {
+    if(cMonth==Math.floor(CalendarData[m]/0x10000)+1) { cMonth=1-cMonth; }
+    if(cMonth>Math.floor(CalendarData[m]/0x10000)+1)  { cMonth--; }
+   }
+}
+/*
+Date.prototype.setISO8601 = function (string) {
+    var regexp = "([0-9]{4})(-([0-9]{2})(-([0-9]{2})" +
+        "(T([0-9]{2}):([0-9]{2})(:([0-9]{2})(\.([0-9]+))?)?" +
+        "(Z|(([-+])([0-9]{2}):([0-9]{2})))?)?)?)?";
+    var d = string.match(new RegExp(regexp));
+
+    var offset = 0;
+    var date = new Date(d[1], 0, 1);
+
+    if (d[3]) { date.setMonth(d[3] - 1); }
+    if (d[5]) { date.setDate(d[5]); }
+    if (d[7]) { date.setHours(d[7]); }
+    if (d[8]) { date.setMinutes(d[8]); }
+    if (d[10]) { date.setSeconds(d[10]); }
+    if (d[12]) { date.setMilliseconds(Number("0." + d[12]) * 1000); }
+    if (d[14]) {
+        offset = (Number(d[16]) * 60) + Number(d[17]);
+        offset *= ((d[15] == '-') ? 1 : -1);
+    }
+
+    offset -= date.getTimezoneOffset();
+    time = (Number(date) + (offset * 60 * 1000));
+    this.setTime(Number(time));
+}
+*/
+Date.prototype.toISO8601String = function (format, offset) {
+    /* accepted values for the format [1-6]:
+     1 Year:
+       YYYY (eg 1997)
+     2 Year and month:
+       YYYY-MM (eg 1997-07)
+     3 Complete date:
+       YYYY-MM-DD (eg 1997-07-16)
+     4 Complete date plus hours and minutes:
+       YYYY-MM-DDThh:mmTZD (eg 1997-07-16T19:20+01:00)
+     5 Complete date plus hours, minutes and seconds:
+       YYYY-MM-DDThh:mm:ssTZD (eg 1997-07-16T19:20:30+01:00)
+     6 Complete date plus hours, minutes, seconds and a decimal
+       fraction of a second
+       YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45+01:00)
+    */
+    if (!format) { var format = 6; }
+    if (!offset) {
+        var offset = 'Z';
+        var date = this;
+    } else {
+        var d = offset.match(/([-+])([0-9]{2}):([0-9]{2})/);
+        var offsetnum = (Number(d[2]) * 60) + Number(d[3]);
+        offsetnum *= ((d[1] == '-') ? -1 : 1);
+        var date = new Date(Number(Number(this) + (offsetnum * 60000)));
+    }
+
+    var zeropad = function (num) { return ((num < 10) ? '0' : '') + num; }
+
+    var str = "";
+    str += date.getUTCFullYear();
+    if (format > 1) { str += "-" + zeropad(date.getUTCMonth() + 1); }
+    if (format > 2) { str += "-" + zeropad(date.getUTCDate()); }
+    if (format > 3) {
+        str += "T" + zeropad(date.getUTCHours()) +
+               ":" + zeropad(date.getUTCMinutes());
+    }
+    if (format > 5) {
+        var secs = Number(date.getUTCSeconds() + "." +
+                   ((date.getUTCMilliseconds() < 100) ? '0' : '') +
+                   zeropad(date.getUTCMilliseconds()));
+        str += ":" + zeropad(secs);
+    } else if (format > 4) { str += ":" + zeropad(date.getUTCSeconds()); }
+
+    if (format > 3) { str += offset; }
+    return str;
+}
+function c2e(year, month, day)
+{
+    var i,k,m;
+    var y = new Array (0,0);//y[0]：小月、y[1]：大月 
+//    TheDate= (arguments.length!=3) ? new Date() : new Date(arguments[0],arguments[1],arguments[2]);
+    //本年以前的大月小月数
+
+    for(i=0;i<year-1921;i++)
+    {
+
+      k=(CalendarData[i]<0xfff)?11:12;
+
+      for(m=0;m<=k;m++)
+
+       y[GetBit(CalendarData[i],m)]++;
+
+    }
+
+    //统计本年本月以前的大月小月数
+
+    //本年不是闰年
+
+    if(CalendarData[i]<0xfff)
+
+      for(m=13-month;m<=11;m++)
+
+        y[GetBit(CalendarData[i],m)]++;
+
+    else // 是闰年
+   {
+     k=CalendarData[i]/0x10000;
+
+     //根据在闰月前后决定统计的起始位置
+
+     p=(month>k)?13-month:14-month;
+     if(k+month==0)
+       p=13+month;     //本月就是闰月
+     for(m=p;m<=12;m++)
+      y[GetBit(CalendarData[i],m)]++;
+   }
+   var TheDate = new Date();
+   //7709就是1920年腊月三十
+   //1921年2月7日1920年腊月三十, Date use 0 as January
+   TheDate.setTime(Date.parse(new Date(1921,1,7)) + (y[0]*29+y[1]*30+day)* 24 *3600 * 1000);
+   //TheDate.setTime(Date.parse());
+   //alert(TheDate.toLocaleString());
+   //return (TheDate.getYear()+1900) + '-' + ((TheDate.getMonth() + 1)<10)?'0':'' + (TheDate.getMonth() + 1) + '-' + TheDate.getDate();
+   return TheDate.toISO8601String(3,'+08:00');
+} 
+
+function GetcDateString()
+{ var tmp="";
+  tmp+=tgString.charAt((cYear-4)%10);   //年干
+  tmp+=dzString.charAt((cYear-4)%12);   //年支
+  tmp+="(";
+  tmp+=sx.charAt((cYear-4)%12);
+  tmp+=")年 ";
+
+  if(cMonth<1) { tmp+="(闰)"; tmp+=monString.charAt(-cMonth-1); } else {tmp+=monString.charAt(cMonth-1);}
+  tmp+="月";
+  tmp+=(cDay<11)?"初":((cDay<20)?"十":((cDay<30)?"廿":"三十")); /*卅*/
+  if (cDay%10!=0||cDay==10) { tmp+=numString.charAt((cDay-1)%10); }
+  return tmp;
+}
+
+function GetLunarDay(solarYear,solarMonth,solarDay)
+{
+        if (solarYear<1921 || solarYear>2050)
+        {
+          return ""; //年份不在1921-2050范围，无法获得。
+        }
+        else
+        {
+          solarMonth = (parseInt(solarMonth)>0) ? (solarMonth-1) : 11;
+          e2c(solarYear,solarMonth,solarDay); return GetcDateString();
+        }
+}
+
+LunarInit();
+
+</script>
+</head>
+
+<body>
+<p>
+请用你的Google日历账号登陆，并授权本网站对你的Google日历的访问。
+<br>
+<a href="javascript:logMeIn();" >Google日历登录</a>
+</p>
+
+<p>
+请输入称呼：
+<input id="name" type="text" name="name">
+<br>
+请输入农历生日月份：
+<input id="month" type="text" name="month"> 1-12
+<br>
+请输入农历生日日份：
+<input id="day" type="text" name="day"> 1-30
+<br>
+请输入添加提醒的开始年份：
+<input id="start_year" type="text" name="start_year">1921-2050
+<br>
+请输入添加提醒的结束年份：
+<input id="end_year" type="text" name="end_year">1921-2050
+</p>
+<p>
+<a href="javascript:add_event()" >添加日历</a>
+<br>
+<img src="Logo_25wht.gif" />
+</p>
+<div id="debug"></div>
+<!-- hhmts start --> Last modified: Sat Apr 10 22:10:59 CST 2010 <!-- hhmts end -->
+</body> </html>
