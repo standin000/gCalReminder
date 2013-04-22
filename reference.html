@@ -1,0 +1,87 @@
+A few very basic examples:
+
+ // FUNCTION TO DELETE EVENT
+   function deleteEvent(calendarID,eventID) {
+     gapi.client.load('calendar', 'v3', function() {  
+       var request = gapi.client.calendar.events.delete({
+         'calendarId': calendarID,
+         'eventId': eventID
+       });
+     request.execute(function(resp) {
+if (typeof resp === 'undefined') {
+alert("Event was successfully removed from the calendar!");
+}
+else{
+alert('An error occurred, please try again later.')
+}
+     });
+     });
+   } 
+// END DELETEEVENT FUNCTION
+
+ // FUNCTION TO INSERT EVENT
+   function insertEvent(calendar) {
+var resource = {
+        "summary":"My Summary",
+        "location": "My Location",
+"description": "My Description",
+        "start": {
+          "date": "2012/06/18"  //if not an all day event, "date" should be "dateTime" with a dateTime value formatted according to RFC 3339
+        },
+        "end": {
+          "date": "2012/06/18"  //if not an all day event, "date" should be "dateTime" with a dateTime value formatted according to RFC 3339
+        }
+      };
+     gapi.client.load('calendar', 'v3', function() {  
+       var request = gapi.client.calendar.events.insert({
+         'calendarId': calendar,
+ 'resource': resource
+       });
+     request.execute(function(resp) {
+       console.log(resp);
+   if (resp.id){
+ alert("Event was successfully added to the calendar!");
+   }
+   else{
+alert("An error occurred. Please try again later.")
+   }
+       
+     });
+     });
+   } 
+   // END INSERTEVENT FUNCTION
+
+  // LIST AVAILABLE CALENDARS THAT HAVE WRITE ACCESS
+     function listWritableCalendars() {
+  gapi.client.load('calendar', 'v3', function() {
+  var request = gapi.client.calendar.calendarList.list({
+                  'minAccessRole': 'writer'
+                  });
+request.execute(function(resp) {
+
+});
+  });
+}
+ // END LIST CALENDARS FUNCTION
+
+// QUERY EXISTING EVENTS FUNCTION
+      function checkExists(calID){
+gapi.client.load('calendar', 'v3', function() {  
+          var request = gapi.client.calendar.events.list({
+ 'calendarId': calID,
+                 'q': "My query string" //set the query string variable
+          });
+request.execute(function(resp) {
+console.log(resp);
+   if (resp.items){
+ for (var i = 0; i < resp.items.length; i++) {
+                     //set event variables and list matching events
+                      }
+                        }
+                        else{
+                     alert("No matching events!");
+                        }
+         });
+                      });
+       }
+// END QUERY EVENTS FUNCTION 

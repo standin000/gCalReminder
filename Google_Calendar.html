@@ -4,11 +4,14 @@
 <title>添加农历生日提醒</title>
 <!-- developer key for http://localhost:8080/ -->
 <!-- Plato Wu,2009/05/03: it seems it do not need developer key now -->
-<!-- <script type="text/javascript" src="http://www.google.com/jsapi?key=ABQIAAAA6zJe32RbwV-Isg_NCBfb5xT2yXp_ZAY8_ufC3CFXhHIE1NvwkxQ0sQitsBHBEJPWtylEE9BOPP_QHw" type="text/javascript"></script> -->
 <!-- Plato Wu,2009/05/13: Preload the library for minimizing roundtrips to Google's servers and decrease latency without using google.load -->
-<!-- <script type="text/javascript" src="https://www.google.com/jsapi"></script> -->
-<script type="text/javascript" src="http://www.google.com/jsapi?autoload={modules:[{name:gdata,version:1.x}]}"></script>
 <script type="text/javascript">
+// Plato Wu,2008/09/28
+// It seems there is a bug in gdata API with IE:
+// It will report:Invalid JSON format, unescaped json is not
+// a supported format for attribute or text values.
+// firefox is OK and it does not effect the notification for participant.
+
 
 /*
 (require :hunchentoot)
@@ -19,122 +22,82 @@
 (setf hunchentoot:*default-content-type* "text/html; charset=UTF-8")
 
 (hunchentoot:start (make-instance 'hunchentoot:acceptor :port 8080))*/
-var EVENT_FEED_URL = 
-    "https://www.google.com/calendar/feeds/default/private/full";
-//Plato Wu,2009/05/02:  use stable version
-//google.load("gdata", "1.s");
 
-//google.setOnLoadCallback(init);
-
-function init() {
-  google.gdata.client.init(handleError);
-
-  if (!google.accounts.user.checkLogin(EVENT_FEED_URL)) 
-    google.accounts.user.login(EVENT_FEED_URL);
-
-}
-function logMeIn() {
-  scope = "https://www.google.com/calendar/feeds/";
-  var token = google.accounts.user.login(scope);
-}
-var calendarService; 
-function setupMyService() {
-// Create the calendar service object
-  calendarService = new google.gdata.calendar.CalendarService('Add Lunar Birthday');
+var clientId = '36912232414';
+var apiKey = 'AIzaSyARMjR8Mj9_Oy5saRNMhpmTObvueeQYUGQ';
+var scopes = 'https://www.googleapis.com/auth/calendar';
+function handleClientLoad() {
+  gapi.client.setApiKey(apiKey);
+  window.setTimeout(checkAuth,1);
+  checkAuth();
 }
 
-function handleError(e) {
-// Plato Wu,2008/09/28
-// It seems there is a bug in gdata API with IE:
-// It will report:Invalid JSON format, unescaped json is not
-// a supported format for attribute or text values.
-// firefox is OK and it does not effect the notification for participant.
-//  alert("There was an error!");
-  document.getElementById("debug").innerHTML += (e.cause ? e.cause.statusText : e.message);
-//  alert(e.cause ? e.cause.statusText : e.message);
+function checkAuth() {
+  gapi.auth.authorize({client_id: clientId, scope: scopes, immediate: true},
+  handleAuthResult);
+}
+
+function handleAuthResult(authResult) {
+  var authorizeButton = document.getElementById('authorize-button');
+  if (authResult) {
+    authorizeButton.style.visibility = 'hidden';
+  } else {
+    authorizeButton.style.visibility = '';
+    authorizeButton.onclick = handleAuthClick;
+  }
+}
+
+function handleAuthClick(event) {
+  gapi.auth.authorize(
+    {client_id: clientId, scope: scopes, immediate: false},
+    handleAuthResult);
+  return false;
 }
 
 function insertBirthday(name, date) {
 /*
- * Create a single event
- */
+* Create a single event
+*/
+  gapi.client.load('calendar', 'v3', function() {
+    var startTime = date + 'T19:00:00.000+08:00';
+    var endTime = date + 'T20:00:00.000+08:00';
+    var resource = {
+          "summary": name + "生日",
+          "description": "记得打电话",
+          "location": "家",
+          // Plato Wu,2009/05/03: alert becomes alarm after sync into mobilephone
+          "reminders":{
+          "useDefault": false,
+          "overrides":[
+          {"method":"sms","minutes":1440},
+          {"method":"popup","minutes":30}
+          ]},
+          "start": {
+          // Plato Wu,2009/05/03 month need be 0-prefix
+          "dateTime": startTime
+          },
+          "end": {
+          "dateTime": endTime
+        }
+  };
 
-// The default "private/full" feed is used to insert event to the
-// primary calendar of the authenticated user
+    var request = gapi.client.calendar.events.insert({
+                   'calendarId': 'primary',
+                    'resource': resource
+                  });
 
-var feedUri = 'https://www.google.com/calendar/feeds/default/private/full';
-
-// Create an instance of CalendarEventEntry representing the new event
-var entry = new google.gdata.calendar.CalendarEventEntry();
-
-// Set the title of the event
-entry.setTitle(google.gdata.Text.create(name + '的生日'));
-
-// Set the calendar summary
-var summary = new google.gdata.Text();
-summary.setText('记得打电话');
-entry.setContent(summary);
-// Set the calendar timezone
-//var timeZone = new google.gdata.calendar.TimeZoneProperty();
-//timeZone.setValue('Asia/Shanghai');
-//var s = timeZone.getValue();
-//entry.setTimeZone(timeZone);
-// Set the calendar location
-var where = new google.gdata.Where();
-where.setLabel('家');
-where.setValueString('家');
-entry.addLocation(where);
-
-// Create a When object that will be attached to the event
-var when = new google.gdata.When();
-
-// Set the start and end time of the When object
-// Plato Wu,2009/05/03 month need be 0-prefix
-var startTime =
-//google.gdata.DateTime.fromIso8601("2008-06-17T09:00:00.000+08:00");
-google.gdata.DateTime.fromIso8601(date+'T19:00:00.000+08:00');
-//document.getElementById("debug").innerHTML += startTime;
-var endTime =
-//google.gdata.DateTime.fromIso8601("2008-06-17T10:00:00.000+08:00");
-google.gdata.DateTime.fromIso8601(date+'T19:00:00.000+08:00');
-//document.getElementById("debug").innerHTML += endTime;
-when.setStartTime(startTime);
-when.setEndTime(endTime);
-
-var reminder = new google.gdata.Reminder();
-reminder.setDays(1);
-reminder.setMethod(google.gdata.Reminder.METHOD_SMS);
-// Plato Wu,2009/05/03 reminder belongs when after sync into mobilephone!
-when.addReminder(reminder);
-
-// Plato Wu,2009/05/03: alert becomes alarm after sync into mobilephone
-var alarm_reminder = new google.gdata.Reminder();
-alarm_reminder.setMinutes(10);
-alarm_reminder.setMethod(google.gdata.Reminder.METHOD_ALERT);
-when.addReminder(alarm_reminder);
-
-// Add the When object to the event
-entry.addTime(when);
-
-//var person = new google.gdata.calendar.CalendarWho();
-//person.setEmail(account);
-//entry.addParticipant(person);
-//var notification = new google.gdata.calendar.SendEventNotificationsProperty();
-//notification.setValue("true");
-//entry.setSendEventNotifications(notification);
-
-// The callback method that will be called after a successful insertion from insertEntry()
-var callback = function(result) {
-  document.getElementById("debug").innerHTML += "创建成功！";
-//  google.accounts.user.logout();
-//    alert('event created!')
-}
-
-// Error handler will be invoked if there is an error from insertEntry()
-
-// Submit the request using the calendar service object
-calendarService.insertEntry(feedUri, entry, callback,
-    handleError, google.gdata.calendar.CalendarEventEntry);
+    request.execute(function(resp) { 
+      console.log(resp);
+      if(resp.id){
+        document.getElementById("debug").innerHTML += resp.summary;
+        document.getElementById("debug").innerHTML += resp.start.dateTime;
+        document.getElementById("debug").innerHTML += "创建成功！<br>";
+      }
+      else{
+        document.getElementById("debug").innerHTML += "创建失败！";
+      }
+    });
+  });
 }
 function add_event()
 {
@@ -152,26 +115,14 @@ function add_event()
        return;
    }
 
-//   alert(date.value);
-//   alert(name.value);
-//  c2e(2020,2,20);
-//  alert(c2e(2009,4,20));
-//  c2e(2020,6,18);
-/*  alert(c2e(2021,2,20));
-  alert(c2e(2025,9,21));
-  alert(c2e(2038,4,20));
-  alert(c2e(2046,9,21));
-  alert(c2e(2049,2,20));*/
 
-   setupMyService();
-//  alert(c2e(parseInt(end_year),parseInt(month),parseInt(day)));
-for(i = parseInt(start_year); i<= parseInt(end_year); i++)
-{
+  for(i = parseInt(start_year); i<= parseInt(end_year); i++)
+  {
     insertBirthday(name, c2e(i, parseInt(month), parseInt(day)));
-}
+  }
 /*   for(i = 2010; i < 2013; i++)
    {
-/*       //Add 母亲节
+       //Add 母亲节
        var first = new Date(i,4,1);
        //getDay return 0-6, 0 mean Sunday
        if(first.getDay() == 0)
@@ -180,7 +131,6 @@ for(i = parseInt(start_year); i<= parseInt(end_year); i++)
          first.setDate(1 - first.getDay() + 14);
 
        insertBirthday('母亲节', first.toISO8601String(3,'+08:00')); //added from 2009-2012
-//      document.getElementById("debug").innerHTML += first.toISO8601String(3,'+08:00');
 //      document.getElementById("debug").innerHTML += first.getDay();
        //Add 父亲节
        first.setMonth(5);
@@ -190,30 +140,11 @@ for(i = parseInt(start_year); i<= parseInt(end_year); i++)
        else
          first.setDate(1 - first.getDay() + 21);
        insertBirthday('父亲节', first.toISO8601String(3,'+08:00')); //added from 2009-2012
-//      document.getElementById("debug").innerHTML += first.toISO8601String(3,'+08:00');
-//       document.getElementById("debug").innerHTML += first.getDay();
    }*/
 }
 /*
 转换从其它算法中的农历数据，它把闰月和大小月信息分开放在两个数组了，
 另外它的2013年的数据时错的。
-
-(setf input-1 '(#xb4a0 #xb550 #xad50 #x55a8 #x4ba0 #xa5b0 #x52b8 #x52b0 #xa930 #x74a8
-#x6aa0 #xad50 #x4da8 #x4b60 #x9570 #xa4e0 #xd260 #xe930 #xd530 #x5aa0 
-#x6b50 #x96d0 #x4ae8 #x4ad0 #xa4d0 #xd258 #xd250 #xd520 #xdaa0 #xb5a0 
-#x56d0 #x4ad8 #x49b0 #xa4b8 #xa4b0 #xaa50 #xb528 #x6d20 #xada0 #x55b0))
-(setf input-2 '(
-#x04 #x09 #x00 #x60 #x04
-#x00 #x20 #x60 #x05 #x00
-#x30 #xb0 #x06 #x00 #x50
-#x02 #x07 #x00 #x50 #x03))
-
-(setf input-2 (reduce #'(lambda (a b) (append a (list (ash b -4) (logand b #xF) ))) input-2 :initial-value nil))
-
-(loop for i in input-1 for j in input-2 do 
-      (if (= j 0) 
-          (format t "0x~x," (ash i -4))
-          (format t "0x~x," (+ (ash j 16) (ash i -3)))))
 
 */
 //显示当前日期的阴阳历  Edit By R.W. (2004年12月24日 星期五)
@@ -468,15 +399,16 @@ function GetLunarDay(solarYear,solarMonth,solarDay)
 }
 
 LunarInit();
-
 </script>
+<script src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
 </head>
 
 <body>
 <p>
 请用你的Google日历账号登陆，并授权本网站对你的Google日历的访问。
 <br>
-<a href="javascript:logMeIn();" >Google日历登录</a>
+<a href='#' id='authorize-button' onclick='handleAuthClick();'>Google日历登录</a>
+
 </p>
 
 <p>
@@ -498,8 +430,6 @@ LunarInit();
 <p>
 <a href="javascript:add_event()" >添加日历</a>
 <br>
-<img src="Logo_25wht.gif" />
 </p>
 <div id="debug"></div>
-<!-- hhmts start --> Last modified: Sat Apr 10 22:10:59 CST 2010 <!-- hhmts end -->
 </body> </html>
