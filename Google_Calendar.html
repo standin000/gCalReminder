@@ -106,22 +106,32 @@ function add_event()
    var day = document.getElementById("day").value;
    var start_year = document.getElementById("start_year").value;
    var end_year = document.getElementById("end_year").value;
-   if(month < 1 || month > 12 ||
-      day < 1 || day > 30 ||
-      start_year < 1921 || start_year > 2050 ||
+   var mother_father_day = document.getElementById("mother_father_day").checked;
+    if(start_year < 1921 || start_year > 2050 ||
       end_year < 1921 || end_year > 2050)
    {
-       alert("请输入正确的年月日值");
-       return;
+     alert("请输入正确的起始终结年值");
+     return;
    }
 
-
-  for(i = parseInt(start_year); i<= parseInt(end_year); i++)
+  if(name)
   {
+    if(month < 1 || month > 12 ||
+      day < 1 || day > 30)
+    {
+       alert("请输入正确的月日值");
+       return;
+    }      
+
+    for(i = parseInt(start_year); i<= parseInt(end_year); i++)
+    {
     insertBirthday(name, c2e(i, parseInt(month), parseInt(day)));
+    }
   }
-/*   for(i = 2010; i < 2013; i++)
-   {
+  if(mother_father_day)
+  {                                    
+    for(i = parseInt(start_year); i<= parseInt(end_year); i++)
+    {
        //Add 母亲节
        var first = new Date(i,4,1);
        //getDay return 0-6, 0 mean Sunday
@@ -130,8 +140,7 @@ function add_event()
        else
          first.setDate(1 - first.getDay() + 14);
 
-       insertBirthday('母亲节', first.toISO8601String(3,'+08:00')); //added from 2009-2012
-//      document.getElementById("debug").innerHTML += first.getDay();
+       insertBirthday('母亲节', first.toISO8601String(3,'+08:00'));
        //Add 父亲节
        first.setMonth(5);
        first.setDate(1);
@@ -139,8 +148,10 @@ function add_event()
          first.setDate(15);
        else
          first.setDate(1 - first.getDay() + 21);
-       insertBirthday('父亲节', first.toISO8601String(3,'+08:00')); //added from 2009-2012
-   }*/
+       insertBirthday('父亲节', first.toISO8601String(3,'+08:00'));
+    }
+  }
+
 }
 /*
 转换从其它算法中的农历数据，它把闰月和大小月信息分开放在两个数组了，
@@ -420,6 +431,9 @@ LunarInit();
 <br>
 请输入农历生日日份：
 <input id="day" type="text" name="day"> 1-30
+<br>
+添加母亲节和父亲节提醒
+<input id="mother_father_day" type="checkbox" name="mother_father_day">
 <br>
 请输入添加提醒的开始年份：
 <input id="start_year" type="text" name="start_year">1921-2050
